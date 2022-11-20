@@ -11,7 +11,10 @@ from sklearn.preprocessing import (
     PolynomialFeatures,
 )
 
+from typing import Union, List
+
 from tubular.base import BaseTransformer
+from abc import ABC, abstractmethod
 
 
 class LogTransformer(BaseTransformer):
@@ -512,3 +515,32 @@ class InteractionTransformer(BaseTransformer):
             ].product(axis=1, skipna=False)
 
         return X
+
+class BaseCompareOneToMany(ABC, BaseTransformer):
+
+    def __init__(self, primary_column:str, comparison_columns:Union[List[str], str]):
+
+        # check types
+
+        super().__init__(columnumns=[primary_column]+comparison_columns)
+
+        self.comparison_columns = comparison_columns
+        self.primary_column = primary_column
+
+    @abstractmethod
+    def _compare_columns(self, column_1:pd.Series, column_2: pd.Series) -> pd.Series:
+        pass
+
+    @abstractmethod
+    def _generate_colum_name(self, comparison_column:str) -> str:
+        return f"{self.primary_column}_comp_{comparison_column}"
+
+    def transform(self, X):
+        X = super().transform(X)
+
+        for comp_col in self.comparison_columns:
+            new_col_name = self._generate_colum_name(comp_col)
+            X[new_col_name] = self._compare_columns(X[self.primary_column], X[comp_col])
+
+        return X
+        
